@@ -2775,7 +2775,131 @@
         }
 
         function castSpell(command) {
-            speak('Spell casting will be implemented in the next update. Use your special ability for now.');
+            if (game.player.learnedAbilities.length === 0) {
+                speak('You have no learned spells. Find ability books to learn new spells.');
+                return;
+            }
+
+            let spellToCast = null;
+            
+            for (let abilityName of game.player.learnedAbilities) {
+                if (command.includes(abilityName.toLowerCase())) {
+                    spellToCast = abilities.find(a => a.name === abilityName);
+                    break;
+                }
+            }
+
+            if (!spellToCast) {
+                speak(`You know: ${game.player.learnedAbilities.join(', ')}. Say which spell to cast.`);
+                return;
+            }
+
+            let manaCost = spellToCast.cost;
+            const clarityEffect = game.player.activeEffects.find(e => e.type === 'clarity');
+            if (clarityEffect) {
+                manaCost = Math.floor(manaCost * 0.5);
+            }
+
+            if (game.player.mana < manaCost) {
+                speak(`Not enough mana. ${spellToCast.name} costs ${manaCost} mana.`);
+                return;
+            }
+
+            game.player.mana -= manaCost;
+
+            let messages = [`You cast ${spellToCast.name}!`];
+            if (clarityEffect) messages.push(`Clarity reduces mana cost by 50%!`);
+
+            if (spellToCast.type === 'freeze') {
+                let damage = spellToCast.damage + (game.player.magicAffinity * 2);
+                game.combat.enemy.health -= damage;
+                game.combat.enemy.frozen = true;
+                messages.push(`${damage} damage! ${game.combat.enemy.name} is frozen for 1 turn!`);
+            } else if (spellToCast.type === 'stun') {
+                let damage = spellToCast.damage;
+                game.combat.enemy.health -= damage;
+                game.combat.enemy.stunned = true;
+                messages.push(`${damage} damage! ${game.combat.enemy.name} is stunned!`);
+            } else if (spellToCast.type === 'poison') {
+                let damage = spellToCast.damage;
+                game.combat.enemy.health -= damage;
+                game.combat.enemy.poisoned = { damage: 15, duration: spellToCast.duration };
+                messages.push(`${damage} damage! ${game.combat.enemy.name} is poisoned for ${spellToCast.duration} turns!`);
+            } else if (spellToCast.type === 'sneak') {
+                let damage = spellToCast.damage + (game.player.stealth * 3);
+                game.combat.enemy.health -= damage;
+                messages.push(`${damage} damage from the shadows! No counter attack!`);
+            } else if (spellToCast.type === 'aoe') {
+                let damage = spellToCast.damage;
+                if (game.player.class === 'mage') {
+                    damage += (game.player.magicAffinity * 3);
+                } else if (game.player.class === 'warrior') {
+                    damage += (game.player.strength * 2);
+                }
+                
+                game.combat.enemy.health -= damage;
+                messages.push(`${damage} damage to ${game.combat.enemy.name}!`);
+                
+                if (game.combat.secondEnemy && game.combat.secondEnemy.health > 0) {
+                    game.combat.secondEnemy.health -= damage;
+                    messages.push(`${damage} damage to ${game.combat.secondEnemy.name}!`);
+                }
+            } else if (spellToCast.type === 'timestop') {
+                game.combat.enemy.frozen = true;
+                game.combat.enemy.timestopTurns = 2;
+                if (game.combat.secondEnemy) {
+                    game.combat.secondEnemy.frozen = true;
+                    game.combat.secondEnemy.timestopTurns = 2;
+                }
+                messages.push(`Time stops! All enemies frozen for 2 turns!`);
+            } else if (spellToCast.type === 'rage') {
+                let damage = spellToCast.damage * 3;
+                game.combat.enemy.health -= damage;
+                messages.push(`Triple strike! ${damage} total damage!`);
+            } else if (spellToCast.type === 'vanish') {
+                game.combat.playerShadowmelded = true;
+                messages.push(`You vanish into shadows! Next attack deals 200% damage!`);
+            } else if (spellToCast.type === 'mark') {
+                let damage = spellToCast.damage;
+                game.combat.enemy.health -= damage;
+                game.combat.enemy.deathMarked = true;
+                messages.push(`${damage} damage! ${game.combat.enemy.name} is marked! Takes 50% more damage!`);
+            } else {
+                let damage = spellToCast.damage;
+                if (game.player.class === 'mage') {
+                    damage += (game.player.magicAffinity * 3);
+                } else if (game.player.class === 'warrior') {
+                    damage += (game.player.strength * 2);
+                } else if (game.player.class === 'rogue') {
+                    damage += (game.player.stealth * 2);
+                }
+                game.combat.enemy.health -= damage;
+                messages.push(`${damage} damage!`);
+            }
+
+            messages.push(`${game.combat.enemy.name} has ${Math.max(0, game.combat.enemy.health)} health left.`);
+
+            speakSequence(messages, () => {
+                if (game.combat.enemy.health <= 0) {
+                    if (game.combat.secondEnemy && game.combat.secondEnemy.health > 0) {
+                        game.combat.enemy = game.combat.secondEnemy;
+                        game.combat.secondEnemy = null;
+                        speak(`${game.combat.enemy.name} remains! Health: ${game.combat.enemy.health}.`, () => {
+                            if (spellToCast.type !== 'sneak') {
+                                setTimeout(() => enemyTurn(), 1000);
+                            }
+                        });
+                    } else {
+                        setTimeout(() => combatVictory(), 1000);
+                    }
+                } else {
+                    if (spellToCast.type === 'sneak' || spellToCast.type === 'vanish') {
+                        setTimeout(() => speak('What will you do?'), 500);
+                    } else {
+                        setTimeout(() => enemyTurn(), 1000);
+                    }
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -2791,4 +2915,5 @@
 </html>
 
         
+
 
