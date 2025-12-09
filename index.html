@@ -367,155 +367,159 @@
         }
 
         function buyFromMerchant(command) {
-            let itemToBuy = null;
-            
-            for (let item of merchantItems) {
-                if (command.includes(item.name.toLowerCase())) {
-                    if (item.minLevel && game.dungeon.currentLevel < item.minLevel) {
-                        speak(`${item.name} requires dungeon level ${item.minLevel}. Come back later.`);
-                        return;
-                    }
-                    if (item.type === 'weapon' || item.type === 'armor' || item.type === 'helmet' || 
-                        item.type === 'gloves' || item.type === 'boots' || item.type === 'shield' || item.type === 'bracelet') {
-                        if (item.class === game.player.class || !item.class) {
-                            itemToBuy = item;
-                            break;
-                        }
-                    } else {
-                        itemToBuy = item;
-                        break;
-                    }
-                }
-            }
-
-            if (!itemToBuy) {
-                speak('Item not recognized or not for your class. Say "what do you have" to see available items.');
+    let itemToBuy = null;
+    
+    for (let item of merchantItems) {
+        const itemNameWords = item.name.toLowerCase().split(' ');
+        const commandLower = command.toLowerCase();
+        const matchesName = itemNameWords.every(word => commandLower.includes(word));
+        
+        if (matchesName) {
+            if (item.minLevel && game.dungeon.currentLevel < item.minLevel) {
+                speak(`${item.name} requires dungeon level ${item.minLevel}. Come back later.`);
                 return;
             }
-
-            if (game.player.gold < itemToBuy.price) {
-                speak(`Not enough gold. You need ${itemToBuy.price} gold but only have ${game.player.gold}.`);
-                return;
-            }
-
-            game.player.gold -= itemToBuy.price;
-            
-            if (itemToBuy.type === 'special_item') {
-                game.player.specialItems.push(itemToBuy.name);
-                speak(`You bought ${itemToBuy.name} for ${itemToBuy.price} gold! ${itemToBuy.effect}. This is now permanently active!`);
-            } else if (itemToBuy.type === 'special_ring') {
-                game.player.equippedRings.push(itemToBuy.name);
-                speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! ${itemToBuy.effect}.`);
-            } else if (itemToBuy.type === 'special_amulet') {
-                if (game.player.equippedAmulet) {
-                    game.player.inventory.push(game.player.equippedAmulet);
+            if (item.type === 'weapon' || item.type === 'armor' || item.type === 'helmet' || 
+                item.type === 'gloves' || item.type === 'boots' || item.type === 'shield' || item.type === 'bracelet') {
+                if (!item.class || item.class === game.player.class) {
+                    itemToBuy = item;
+                    break;
                 }
-                game.player.equippedAmulet = itemToBuy.name;
-                game.player.maxMana += itemToBuy.manaValue;
-                game.player.mana += itemToBuy.manaValue;
-                speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Max mana increased by ${itemToBuy.manaValue}!`);
-            } else if (itemToBuy.type === 'weapon') {
-                if (game.player.weapon) {
-                    game.player.inventory.push(game.player.weapon);
-                }
-                game.player.weapon = itemToBuy.name;
-                game.player.baseAttack = itemToBuy.attack;
-                if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack ${itemToBuy.attack}, Mana +${itemToBuy.mana}!`);
-                } else {
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack ${itemToBuy.attack}!`);
-                }
-            } else if (itemToBuy.type === 'armor') {
-                if (game.player.armor) {
-                    game.player.inventory.push(game.player.armor);
-                }
-                game.player.armor = itemToBuy.name;
-                recalculateDefense();
-                if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}, Mana +${itemToBuy.mana}!`);
-                } else {
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
-                }
-            } else if (itemToBuy.type === 'shield') {
-                if (game.player.shield) {
-                    game.player.inventory.push(game.player.shield);
-                }
-                game.player.shield = itemToBuy.name;
-                recalculateDefense();
-                speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
-            } else if (itemToBuy.type === 'helmet') {
-                if (game.player.helmet) {
-                    game.player.inventory.push(game.player.helmet);
-                }
-                game.player.helmet = itemToBuy.name;
-                if (itemToBuy.defense) {
-                    recalculateDefense();
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
-                } else if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
-                }
-            } else if (itemToBuy.type === 'gloves') {
-                if (game.player.gloves) {
-                    game.player.inventory.push(game.player.gloves);
-                }
-                game.player.gloves = itemToBuy.name;
-                if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
-                } else {
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack +${itemToBuy.attack}!`);
-                }
-            } else if (itemToBuy.type === 'boots') {
-                if (game.player.boots) {
-                    game.player.inventory.push(game.player.boots);
-                }
-                game.player.boots = itemToBuy.name;
-                if (itemToBuy.defense) {
-                    recalculateDefense();
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
-                } else if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                    speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
-                }
-            } else if (itemToBuy.type === 'bracelet') {
-                const hand = command.includes('left') ? 'left' : command.includes('right') ? 'right' : 
-                            !game.player.leftBracelet ? 'left' : !game.player.rightBracelet ? 'right' : null;
-                
-                if (!hand) {
-                    speak('Both bracelet slots are full. Say "equip left bracelet" or "equip right bracelet" to specify which to replace.');
-                    game.player.gold += itemToBuy.price;
-                    return;
-                }
-                
-                if (hand === 'left' && game.player.leftBracelet) {
-                    game.player.inventory.push(game.player.leftBracelet);
-                } else if (hand === 'right' && game.player.rightBracelet) {
-                    game.player.inventory.push(game.player.rightBracelet);
-                }
-                
-                if (hand === 'left') {
-                    game.player.leftBracelet = itemToBuy.name;
-                } else {
-                    game.player.rightBracelet = itemToBuy.name;
-                }
-                
-                if (itemToBuy.mana) {
-                    game.player.maxMana += itemToBuy.mana;
-                    game.player.mana += itemToBuy.mana;
-                }
-                speak(`You bought and equipped ${itemToBuy.name} on your ${hand} wrist for ${itemToBuy.price} gold! Attack +${itemToBuy.attack}, Mana +${itemToBuy.mana}!`);
             } else {
-                game.player.inventory.push(itemToBuy.name);
-                speak(`You bought ${itemToBuy.name} for ${itemToBuy.price} gold. Remaining gold: ${game.player.gold}.`);
+                itemToBuy = item;
+                break;
             }
+        }
+    }
+
+    if (!itemToBuy) {
+        speak('Item not recognized or not for your class. Say "what do you have" to see available items.');
+        return;
+    }
+
+    if (game.player.gold < itemToBuy.price) {
+        speak(`Not enough gold. You need ${itemToBuy.price} gold but only have ${game.player.gold}.`);
+        return;
+    }
+
+    game.player.gold -= itemToBuy.price;
+    
+    if (itemToBuy.type === 'special_item') {
+        game.player.specialItems.push(itemToBuy.name);
+        speak(`You bought ${itemToBuy.name} for ${itemToBuy.price} gold! ${itemToBuy.effect}. This is now permanently active!`);
+    } else if (itemToBuy.type === 'special_ring') {
+        game.player.equippedRings.push(itemToBuy.name);
+        speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! ${itemToBuy.effect}.`);
+    } else if (itemToBuy.type === 'special_amulet') {
+        if (game.player.equippedAmulet) {
+            game.player.inventory.push(game.player.equippedAmulet);
+        }
+        game.player.equippedAmulet = itemToBuy.name;
+        game.player.maxMana += itemToBuy.manaValue;
+        game.player.mana += itemToBuy.manaValue;
+        speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Max mana increased by ${itemToBuy.manaValue}!`);
+    } else if (itemToBuy.type === 'weapon') {
+        if (game.player.weapon) {
+            game.player.inventory.push(game.player.weapon);
+        }
+        game.player.weapon = itemToBuy.name;
+        game.player.baseAttack = itemToBuy.attack;
+        if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack ${itemToBuy.attack}, Mana +${itemToBuy.mana}!`);
+        } else {
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack ${itemToBuy.attack}!`);
+        }
+    } else if (itemToBuy.type === 'armor') {
+        if (game.player.armor) {
+            game.player.inventory.push(game.player.armor);
+        }
+        game.player.armor = itemToBuy.name;
+        recalculateDefense();
+        if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}, Mana +${itemToBuy.mana}!`);
+        } else {
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
+        }
+    } else if (itemToBuy.type === 'shield') {
+        if (game.player.shield) {
+            game.player.inventory.push(game.player.shield);
+        }
+        game.player.shield = itemToBuy.name;
+        recalculateDefense();
+        speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
+    } else if (itemToBuy.type === 'helmet') {
+        if (game.player.helmet) {
+            game.player.inventory.push(game.player.helmet);
+        }
+        game.player.helmet = itemToBuy.name;
+        if (itemToBuy.defense) {
+            recalculateDefense();
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
+        } else if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
+        }
+    } else if (itemToBuy.type === 'gloves') {
+        if (game.player.gloves) {
+            game.player.inventory.push(game.player.gloves);
+        }
+        game.player.gloves = itemToBuy.name;
+        if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
+        } else {
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Attack +${itemToBuy.attack}!`);
+        }
+    } else if (itemToBuy.type === 'boots') {
+        if (game.player.boots) {
+            game.player.inventory.push(game.player.boots);
+        }
+        game.player.boots = itemToBuy.name;
+        if (itemToBuy.defense) {
+            recalculateDefense();
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Defense ${itemToBuy.defense}!`);
+        } else if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+            speak(`You bought and equipped ${itemToBuy.name} for ${itemToBuy.price} gold! Mana +${itemToBuy.mana}!`);
+        }
+    } else if (itemToBuy.type === 'bracelet') {
+        const hand = command.includes('left') ? 'left' : command.includes('right') ? 'right' : 
+                    !game.player.leftBracelet ? 'left' : !game.player.rightBracelet ? 'right' : null;
+        
+        if (!hand) {
+            speak('Both bracelet slots are full. Say "equip left bracelet" or "equip right bracelet" to specify which to replace.');
+            game.player.gold += itemToBuy.price;
+            return;
+        }
+        
+        if (hand === 'left' && game.player.leftBracelet) {
+            game.player.inventory.push(game.player.leftBracelet);
+        } else if (hand === 'right' && game.player.rightBracelet) {
+            game.player.inventory.push(game.player.rightBracelet);
+        }
+        
+        if (hand === 'left') {
+            game.player.leftBracelet = itemToBuy.name;
+        } else {
+            game.player.rightBracelet = itemToBuy.name;
+        }
+        
+        if (itemToBuy.mana) {
+            game.player.maxMana += itemToBuy.mana;
+            game.player.mana += itemToBuy.mana;
+        }
+        speak(`You bought and equipped ${itemToBuy.name} on your ${hand} wrist for ${itemToBuy.price} gold! Attack +${itemToBuy.attack}, Mana +${itemToBuy.mana}!`);
+    } else {
+        game.player.inventory.push(itemToBuy.name);
+        speak(`You bought ${itemToBuy.name} for ${itemToBuy.price} gold. Remaining gold: ${game.player.gold}.`);
+    }
         }
 
         function listMerchantWares() {
@@ -3325,4 +3329,5 @@
 </body>
 
 </html>
+
 
